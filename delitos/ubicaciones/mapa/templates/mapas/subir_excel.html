@@ -1,0 +1,681 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Delitos</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Select2 CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+    <!-- Select2 JS -->
+        <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <!-- Clustering -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+    <!-- html2canvas 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>-->
+
+    <!-- leaflet-image -->
+    <script src="https://rawcdn.githack.com/mapbox/leaflet-image/gh-pages/leaflet-image.js"></script>
+
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>const { jsPDF } = window.jspdf;</script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f8f9fa;
+            color: #333;
+        }
+        .container { display: flex; height: 100vh; }
+        .left-panel {
+            width: 65%;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .right-panel {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        #map { flex: 1; min-height: 500px; border-radius: 12px; }
+        .card {
+            background: #fff;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        .filtros-linea {
+    display: flex;
+    flex-wrap: wrap;  /* Permite que se acomoden en varias líneas si es muy estrecho */
+    gap: 20px;
+    margin-bottom: 10px;
+    align-items: flex-end;
+}
+
+        .filtro-item {
+    display: flex;
+    flex-direction: column;
+}
+
+        .filtro-item label {
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .filtro-item select,
+        .filtro-item input[type="text"],
+        .filtro-item input[type="number"] {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            background-color: #f9f9f9;
+            transition: border-color 0.3s ease;
+        }
+
+        .filtro-item select:focus,
+        .filtro-item input[type="text"]:focus,
+        .filtro-item input[type="number"]:focus {
+            outline: none;
+            border-color: #007bff;
+            background-color: #fff;
+        }
+
+        .filtro-radio {
+    max-width: 120px;
+    flex: none;
+}
+
+/* Mes un poco más angosto */
+.filtro-mes {
+    width: 160px;
+}
+
+/* Tipo ocupa el resto del espacio */
+.filtro-tipo {
+    width: 240px;
+}
+        button {
+            background: #007bff; color: white; border: none;
+            padding: 10px 15px; border-radius: 8px; cursor: pointer;
+        }
+        button:hover { background: #0056b3; }
+        #btnExportarPDF { background: #28a745; }
+        #btnExportarPDF:hover { background: #1e7e34; }
+        canvas {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- PANEL IZQUIERDO -->
+    <div class="left-panel">
+        <h1>Delitos</h1>
+
+        <form id="formulario" method="post" novalidate>
+            {% csrf_token %}
+            <fieldset class="filtros-linea">
+                <!--<legend>2. Filtros adicionales</legend>-->
+            
+                <div class="filtro-item filtro-radio">
+                    <label for="id_radio_km">Radio (m):</label>
+                    {{ filtro_form.radio_km }}
+                </div>
+            
+                <div class="filtro-item filtro-tipo">
+                    <label for="id_delito_dnpj">Tipo:</label>
+                    {{ filtro_form.delito_dnpj }}
+                </div>
+            
+                <div class="filtro-item filtro-mes">
+                    <label for="id_mes">Mes:</label>
+                    {{ filtro_form.mes }}
+                </div>
+                <div class="filtro-item filtro-exportar">
+    <label>&nbsp;</label> <!-- Espacio para alinear con los otros filtros -->
+    <button id="btnExportarPDF" type="button">📄 Exportar PDF</button>
+</div>
+            </fieldset>
+
+
+            <!-- Inputs ocultos para pasar datos al backend -->
+            <input type="hidden" name="lat_centro" id="lat_centro">
+            <input type="hidden" name="lon_centro" id="lon_centro">
+            <input type="hidden" name="filtrados_json" id="filtrados_json">
+            <input type="hidden" id="radio_usado" name="radio_usado">
+
+            <div class="btn-group">
+                <button type="submit" name="accion" value="graficar">Graficar</button>
+            </div>
+        </form>
+
+        <div id="map"></div>
+
+        {% if coordenadas %}
+            {{ coordenadas|json_script:"coordenadas-json" }}
+            {{ centro|json_script:"centro-json" }}
+
+            <script>
+                const coordenadas = JSON.parse(document.getElementById('coordenadas-json').textContent);
+                let centro = JSON.parse(document.getElementById('centro-json').textContent);
+
+                if (!centro || centro.length !== 2 || centro.some(c => isNaN(c))) {
+                    centro = [-1.8312, -78.1834]; // Ecuador por defecto
+                }
+
+                const map = L.map('map').setView(centro, 5);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+            </script>
+<!-- Cargar API de Google Maps (reemplaza TU_API_KEY_AQUI) -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDxD5EDwb5N4cDFh9HkFfs4P2B08IfFwoU&libraries=places"></script>
+
+<script>
+    // === CUADRO DE BÚSQUEDA ===
+    const searchContainer = L.control({ position: 'topleft' });
+    searchContainer.onAdd = function(map) {
+        const div = L.DomUtil.create('div', 'search-box');
+        div.innerHTML = '<input id="searchInput" type="text" placeholder="Buscar ubicación..." ' +
+                        'style="width:250px;padding:6px;border-radius:6px;border:1px solid #ccc;">';
+        return div;
+    };
+    searchContainer.addTo(map);
+
+    // Evita que el mapa capture clics sobre el input
+    L.DomEvent.disableClickPropagation(document.querySelector('.search-box'));
+
+    // Inicializa Autocomplete
+    const input = document.getElementById('searchInput');
+    const autocomplete = new google.maps.places.Autocomplete(input, {
+        componentRestrictions: { country: "ec" },
+        fields: ["geometry", "name", "formatted_address"]
+    });
+
+    autocomplete.addListener("place_changed", function() {
+        const place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) {
+            alert("No se encontraron coordenadas para esa búsqueda.");
+            return;
+        }
+
+        const lat = place.geometry.location.lat();
+        const lon = place.geometry.location.lng();
+
+        const radio = parseFloat(document.getElementById('id_radio_km').value || 0);
+        if (isNaN(radio) || radio <= 0 || radio > 1000) {
+            alert("Por favor ingresa un radio válido entre 1 y 1000 metros.");
+            return;
+        }
+
+        // Limpia y dibuja nuevos elementos
+        grupoFiltro.clearLayers();
+        L.marker([lat, lon], { icon: iconoRojo }).addTo(grupoFiltro);
+        L.circle([lat, lon], { radius: radio, color: 'blue', fillOpacity: 0.1 }).addTo(grupoFiltro);
+
+        // Filtra los puntos dentro del radio
+        const dentro = coordenadas.filter(c => map.distance([lat, lon], c) <= radio);
+        cluster.clearLayers();
+        dentro.forEach(c => {
+            cluster.addLayer(L.marker(c, { icon: iconoVerde }).bindPopup("Dentro del radio"));
+        });
+
+        // Guarda datos ocultos
+        document.getElementById('lat_centro').value = lat;
+        document.getElementById('lon_centro').value = lon;
+        document.getElementById('filtrados_json').value = JSON.stringify(dentro);
+        document.getElementById('radio_usado').value = radio;
+
+        // Centra el mapa
+        map.setView([lat, lon], 14);
+    });
+</script>
+
+                
+
+
+
+
+<script>
+
+                const iconoRojo = L.icon({
+                    iconUrl: 'https://maps.gstatic.com/mapfiles/ms2/micons/red.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41]
+                });
+                const iconoVerde = L.icon({
+                    iconUrl: 'https://maps.gstatic.com/mapfiles/ms2/micons/green.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41]
+                });
+
+                const grupoFiltro = L.layerGroup().addTo(map);
+                const cluster = L.markerClusterGroup();
+
+                coordenadas.forEach(coord => {
+                    if (coord.length === 2) {
+                        cluster.addLayer(L.marker([coord[0], coord[1]]));
+                    }
+                });
+                map.addLayer(cluster);
+
+                if (coordenadas.length > 0) {
+                    const bounds = L.latLngBounds(coordenadas);
+                    map.fitBounds(bounds);
+                }
+
+                // Click en mapa
+                map.on('click', function (e) {
+                    const lat = e.latlng.lat;
+                    const lon = e.latlng.lng;
+                    grupoFiltro.clearLayers();
+
+                    L.marker([lat, lon], { icon: iconoRojo }).addTo(grupoFiltro);
+
+                    const radio = parseFloat(document.getElementById('id_radio_km').value || 0);
+                    if (isNaN(radio) || radio <= 0 || radio > 1000) {
+                        alert("Por favor ingresa un radio válido entre 1 y 1000 metros.");
+                        return;
+                    }
+
+                    L.circle([lat, lon], { radius: radio, color: 'blue', fillOpacity: 0.1 }).addTo(grupoFiltro);
+
+                    const dentro = coordenadas.filter(c => map.distance([lat, lon], c) <= radio);
+                    cluster.clearLayers();
+                    dentro.forEach(c => {
+                        cluster.addLayer(L.marker(c, { icon: iconoVerde }).bindPopup("Dentro del radio"));
+                    });
+
+                    document.getElementById('lat_centro').value = lat;
+                    document.getElementById('lon_centro').value = lon;
+                    document.getElementById('filtrados_json').value = JSON.stringify(dentro);
+                    document.getElementById('radio_usado').value = radio;
+                    console.log("Guardados:", lat, lon, radio);
+                });
+
+                // Geocoder
+                /*L.Control.geocoder({ defaultMarkGeocode: false })
+                    .on('markgeocode', function(e) {
+                        const lat = e.geocode.center.lat;
+                        const lon = e.geocode.center.lng;
+
+                        const radio = parseFloat(document.getElementById('id_radio_km').value || 0);
+                        if (isNaN(radio) || radio <= 0 || radio > 1000) {
+                            alert("Por favor ingresa un radio válido entre 1 y 1000 metros.");
+                            return;
+                        }
+
+                        grupoFiltro.clearLayers();
+                        L.marker([lat, lon], { icon: iconoRojo }).addTo(grupoFiltro);
+                        L.circle([lat, lon], { radius: radio, color: 'blue', fillOpacity: 0.1 }).addTo(grupoFiltro);
+
+                        const dentro = coordenadas.filter(c => map.distance([lat, lon], c) <= radio);
+                        cluster.clearLayers();
+                        dentro.forEach(c => {
+                            cluster.addLayer(L.marker(c, { icon: iconoVerde }).bindPopup("Dentro del radio"));
+                        });
+
+                        document.getElementById('lat_centro').value = lat;
+                        document.getElementById('lon_centro').value = lon;
+                        document.getElementById('filtrados_json').value = JSON.stringify(dentro);
+
+                        map.setView([lat, lon], 14);
+                    })
+                    .addTo(map);*/
+                                // Redibujar el círculo si hay datos previos
+                const lat_centro = parseFloat(document.getElementById('lat_centro').value);
+                const lon_centro = parseFloat(document.getElementById('lon_centro').value);
+                const radio_usado = parseFloat(document.getElementById('radio_usado').value);
+                console.log("Recuperados:", lat_centro, lon_centro, radio_usado);
+                if (!isNaN(lat_centro) && !isNaN(lon_centro) && !isNaN(radio_usado)) {
+                    L.marker([lat_centro, lon_centro], { icon: iconoRojo }).addTo(grupoFiltro);
+                    L.circle([lat_centro, lon_centro], { radius: radio_usado, color: 'blue', fillOpacity: 0.1 }).addTo(grupoFiltro);
+                    map.setView([lat_centro, lon_centro], 14);
+                }
+            </script>
+        {% else %}
+            <script>
+                map = L.map('map').setView([-1.8312, -78.1834], 6);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+            </script>
+        {% endif %}
+    </div>
+
+    <!-- PANEL DERECHO -->
+    <div class="right-panel">
+        <h2>Delitos por franja horaria</h2>
+        <canvas id="grafico2"></canvas>
+        <h2>Delitos por semana del mes</h2>
+        <canvas id="grafico_semanal"></canvas>
+        <h2>Top 5 Delitos</h2>
+        <canvas id="grafico_top5"></canvas>
+        <!--<button id="btnExportarPDF">📄 Exportar gráfico a PDF</button>-->
+
+        {% if franjas and conteos %}
+            {{ conteos|json_script:"conteos-json" }}
+            {{ franjas|json_script:"franjas-json" }}
+            {{ semanas|json_script:"semanas-json" }}
+            {{ conteos_semanales|json_script:"conteos_semanales-json" }}
+            {{ delitos_circuito|json_script:"top5-labels-json" }}
+            {{ valores_circuito|json_script:"top5-values-json" }}
+
+            <script>
+                                
+
+
+                // Gráfico por franjas horarias
+                const ctx2 = document.getElementById('grafico2').getContext('2d');
+                const labels = JSON.parse(document.getElementById('franjas-json').textContent);
+                const data = JSON.parse(document.getElementById('conteos-json').textContent);
+                new Chart(ctx2, {
+                    type: 'bar',
+                    data: { labels: labels, datasets: [{ label: 'Recuento de DELITO', data: data, backgroundColor: '#2e7d32',barThickness: 50 }] },
+                    options: { responsive: true, plugins: { legend: { display: false },datalabels: {
+        color: 'white',  // color de los números dentro de las barras
+        font: {
+          weight: 'bold',
+          size: 12
+        },
+        formatter: function(value) {
+          return value;
+        }
+      } },
+                    devicePixelRatio: 3
+                    ,
+                    scales: {
+    x: {
+      categoryPercentage: 1.8,
+      barPercentage: 3.6        
+    }
+  }
+                },
+                    plugins: [ChartDataLabels]
+                });
+
+                // Gráfico semanal
+                const ctx3 = document.getElementById('grafico_semanal').getContext('2d');
+                const semanas = JSON.parse(document.getElementById('semanas-json').textContent);
+                const delitos_semanales = JSON.parse(document.getElementById('conteos_semanales-json').textContent);
+                new Chart(ctx3, {
+                    type: 'bar',
+                    data: { labels: semanas, datasets: [{ label: 'Recuento de DELITO por Semana', data: delitos_semanales, backgroundColor: '#1e3a8a',
+                    barPercentage: 0.5,categoryPercentage: 0.7 }] },
+                    options: { responsive: true, plugins: { legend: { display: false },datalabels: {
+        color: 'white',  // color de los números dentro de las barras
+        font: {
+          weight: 'bold',
+          size: 12
+        },
+        formatter: function(value) {
+          return value;
+        }
+      } } ,
+                    devicePixelRatio: 3 
+                },
+                    plugins: [ChartDataLabels]
+                });
+                // Gráfico Top 5 Delitos (anillo)
+const ctxTop5 = document.getElementById('grafico_top5').getContext('2d');
+const top5Labels = JSON.parse(document.getElementById('top5-labels-json').textContent);
+const top5Values = JSON.parse(document.getElementById('top5-values-json').textContent);
+
+const top5Chart = new Chart(ctxTop5, {
+    type: 'doughnut',
+    data: {
+        labels: top5Labels,
+        datasets: [{
+            label: 'Top 5 Delitos',
+            data: top5Values,
+            backgroundColor: [
+                '#ff6384', '#36a2eb', '#ffcd56', '#4bc0c0', '#9966ff'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: {
+                    boxWidth: 12,
+                    padding: 15,
+                    font: {
+                        size: 10
+                    }
+                },
+                title: {
+                    display: true,
+                    text: 'Tipos de Delito',
+                    font: {
+                        size: 12,
+                        weight: 'bold'
+                    }
+                }
+            },
+            datalabels: {
+                display: true,
+                align: 'end',   // Posición afuera del anillo
+                anchor: 'end',  // Conecta al borde del anillo
+                backgroundColor: '#ffffff',     // Fondo blanco del recuadro
+                borderColor: '#333333',         // Borde gris oscuro
+                borderWidth: 1,
+                borderRadius: 4,
+                padding: {
+                    top: 4,
+                    bottom: 4,
+                    left: 6,
+                    right: 6
+                },
+                color: '#000000',                // Texto negro
+                font: {
+                    size: 9
+                },
+                formatter: (value, context) => {
+                    const label = context.chart.data.labels[context.dataIndex];
+                    return `${label}: ${value}`;
+                }
+            }
+        },
+        devicePixelRatio: 3,
+        layout: {
+            padding: 10
+        },
+        cutout: '60%'  // Tamaño del centro del anillo (ajustable)
+    },
+    plugins: [ChartDataLabels]
+});
+
+
+
+                // Exportar PDF usando html2canvas (Opción 2)
+document.getElementById("btnExportarPDF").addEventListener("click", () => {
+    const pdf = new jsPDF("landscape", "mm", "a4");
+    const canvas1 = document.getElementById("grafico2");         // Franja horaria
+    const canvas2 = document.getElementById("grafico_semanal");  // Semanas
+    const canvas3 = document.getElementById("grafico_top5");     // Top 5
+
+    function getHighResImage(canvas, scale = 3) {
+        const rect = canvas.getBoundingClientRect();
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = rect.width * scale;
+        tempCanvas.height = rect.height * scale;
+        const ctx = tempCanvas.getContext("2d");
+        ctx.scale(scale, scale);
+        ctx.drawImage(canvas, 0, 0, rect.width, rect.height);
+        return tempCanvas.toDataURL("image/png", 1.0);
+    }
+
+    const img1 = getHighResImage(canvas1, 3);
+    const img2 = getHighResImage(canvas2, 3);
+    const img3 = getHighResImage(canvas3, 3);
+
+    const membreteImg = new Image();
+    membreteImg.src = "{% static 'mapa/logo1.png' %}";
+
+    const membretePieImg = new Image();
+    membretePieImg.src = "{% static 'mapa/logo2.png' %}";
+
+    membreteImg.onload = () => {
+        const delitoSeleccionado = $('#id_delito_dnpj').find('option:selected').text();
+        const mesSeleccionado = $('#id_mes').val();
+        const radioSeleccionado = $('#id_radio_km').val();
+        let mesEnPalabras = "Todos";  // Valor por defecto
+        //const mesEnPalabras = formatearMes(mesSeleccionado);
+        if (mesSeleccionado && mesSeleccionado !== "TODOS") {
+            mesEnPalabras = formatearMes(mesSeleccionado);
+        }
+        html2canvas(document.getElementById("map"), {
+            useCORS: true,
+            allowTaint: false
+        }).then(canvasMap => {
+            const imgMap = canvasMap.toDataURL("image/png");
+
+            // === MOVER TODO HACIA ABAJO ===
+            const margenSuperior = 15;  // Espacio superior para todo el contenido
+
+            // Encabezado (logo superior izquierdo)
+            pdf.addImage(membreteImg, "PNG", 15, 8 + margenSuperior, 75, 13);
+
+            // Cuadro de ubicación con título dentro
+            pdf.setDrawColor(0, 200, 100);
+            pdf.setLineWidth(0.5);
+            pdf.roundedRect(10, 30 + margenSuperior, 125, 25, 2, 2);  // Más alto para incluir título
+            pdf.setFontSize(14);
+            pdf.setFont(undefined, "bold");
+            pdf.text("RESUMEN DE DELITOS MENSUALES", 25, 36 + margenSuperior);
+            pdf.setFontSize(10);
+            pdf.setFont(undefined, "normal");
+            pdf.text(`Alcance:  ${radioSeleccionado} metros.`, 15, 43 + margenSuperior);
+            pdf.text(`Mes: ${mesEnPalabras}`, 15, 48 + margenSuperior);
+            pdf.text(`Tipo Delito: ${delitoSeleccionado}`, 15, 53 + margenSuperior);
+
+            // Mapa (parte izquierda inferior)
+            pdf.setFontSize(11);
+            pdf.setFont(undefined, "bold");
+            pdf.setFont(undefined, "normal");
+            pdf.addImage(imgMap, "PNG", 10, 63 + margenSuperior, 125, 80); // Tamaño ajustado
+
+            // Gráfico 1: Semanas del mes (barra derecha arriba)
+            const marco1 = { x: 140, y: 15 + margenSuperior, width: 70, height: 65 };
+            pdf.setDrawColor(0, 200, 100);
+            pdf.setLineWidth(0.5);
+            pdf.roundedRect(marco1.x, marco1.y, marco1.width, marco1.height, 2, 2);
+            pdf.setFontSize(7);
+            pdf.text("Frecuencia de delitos por semana", marco1.x + marco1.width / 2, marco1.y + 7, { align: "center" });
+            // Títulos de ejes para marco1
+            pdf.setFontSize(5);
+            pdf.text("Semanas del Mes", marco1.x + marco1.width / 2, marco1.y + marco1.height - 5, { align: "center" }); // Eje X
+            pdf.text("Recuento de DELITO", marco1.x + 12, marco1.y + marco1.height / 2, { angle: 90, align: "center" });   // Eje Y (rotado)
+
+            pdf.addImage(img2, "PNG", marco1.x + 5, marco1.y + 12, marco1.width - 10, marco1.height - 25);
+
+            // Gráfico 2: Franja horaria (barra izquierda arriba)
+            const marco2 = { x: 212, y: 15 + margenSuperior, width: 75, height: 65 };
+            pdf.roundedRect(marco2.x, marco2.y, marco2.width, marco2.height, 2, 2);
+            pdf.setFontSize(7);
+            pdf.text("Cantidad de delitos por franja horaria", marco2.x + marco2.width / 2, marco2.y + 7, { align: "center" });
+            // Títulos de ejes para marco2
+            pdf.setFontSize(5);
+            pdf.text("Franjas Horarias", marco2.x + marco2.width / 2, marco2.y + marco2.height - 5, { align: "center" }); // Eje X
+            pdf.text("Recuento de DELITO", marco2.x + 12, marco2.y + marco2.height / 2, { angle: 90, align: "center" });           // Eje Y (rotado)
+
+            pdf.addImage(img1, "PNG", marco2.x + 5, marco2.y + 12, marco2.width - 10, marco2.height - 24);
+
+            // Gráfico 3: Top 5 (anillo abajo centrado)
+            const marco3 = { x: 150, y: 90 + margenSuperior, width: 120, height: 70 };
+            pdf.roundedRect(marco3.x, marco3.y, marco3.width, marco3.height, 2, 2);
+            pdf.setFontSize(7);
+            pdf.text("Top 5 de delitos", marco3.x + marco3.width / 2, marco3.y + 9, { align: "center" });
+            pdf.addImage(img3, "PNG", marco3.x + 10, marco3.y + 18, marco3.width - 20, marco3.height - 20);
+
+            // Pie de página
+            pdf.addImage(membretePieImg, "PNG", 250, 175 + margenSuperior, 30, 10);
+            // === PIE DE PÁGINA ===
+            pdf.setDrawColor(180, 180, 180); // línea gris clara
+            pdf.setLineWidth(0.3);
+            pdf.line(10, 185, 285, 185); // línea horizontal superior del pie
+
+            pdf.setFontSize(8);
+            pdf.setTextColor(100); // texto gris medio
+            pdf.setFont(undefined, "italic");
+
+            const footerY = 190; // posición vertical base
+            const lineSpacing = 4;
+
+            pdf.text("• Se toma la base de datos de la Policía Nacional.", 15, footerY);
+            pdf.text("• La base de datos muestra los registros reportados por la ciudadanía.", 15, footerY + lineSpacing);
+            pdf.text("• Se estima que solo el 60% de los delitos son reportados.", 15, footerY + 2 * lineSpacing);
+
+            pdf.setTextColor(0); // vuelve a color negro por si se agrega más texto después
+            // Guardar PDF
+            pdf.save("reporte_estadisticas.pdf");
+        });
+    };
+});
+
+
+            </script>
+        {% endif %}
+    </div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    $('#id_delito_dnpj').select2({
+        placeholder: "Selecciona un delito",
+        allowClear: true,
+        width: '100%'
+    });
+});
+function formatearMes(mesStr) {
+    const meses = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+
+    const [anio, mes] = mesStr.split("-");
+    const nombreMes = meses[parseInt(mes, 10) - 1];
+
+    return `${nombreMes} ${anio}`;
+}
+</script>
+</body>
+</html>
