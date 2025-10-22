@@ -167,10 +167,13 @@
                     <label for="id_mes">Mes:</label>
                     {{ filtro_form.mes }}
                 </div>
+                <div class="btn-group">
+                    <button type="submit" name="accion" value="cargar">Cargar Mapa</button>
+                </div>
                 <div class="filtro-item filtro-exportar">
-    <label>&nbsp;</label> <!-- Espacio para alinear con los otros filtros -->
-    <button id="btnExportarPDF" type="button">📄 Exportar PDF</button>
-</div>
+                    <label>&nbsp;</label>
+                    <button id="btnExportarPDF" type="button">📄 Exportar PDF</button>
+                </div>
             </fieldset>
 
 
@@ -200,6 +203,7 @@
                 }
 
                 const map = L.map('map').setView(centro, 5);
+                
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© OpenStreetMap contributors'
                 }).addTo(map);
@@ -492,27 +496,7 @@ const top5Chart = new Chart(ctxTop5, {
                 }
             },
             datalabels: {
-                display: true,
-                align: 'end',   // Posición afuera del anillo
-                anchor: 'end',  // Conecta al borde del anillo
-                backgroundColor: '#ffffff',     // Fondo blanco del recuadro
-                borderColor: '#333333',         // Borde gris oscuro
-                borderWidth: 1,
-                borderRadius: 4,
-                padding: {
-                    top: 4,
-                    bottom: 4,
-                    left: 6,
-                    right: 6
-                },
-                color: '#000000',                // Texto negro
-                font: {
-                    size: 9
-                },
-                formatter: (value, context) => {
-                    const label = context.chart.data.labels[context.dataIndex];
-                    return `${label}: ${value}`;
-                }
+
             }
         },
         devicePixelRatio: 3,
@@ -677,5 +661,92 @@ function formatearMes(mesStr) {
     return `${nombreMes} ${anio}`;
 }
 </script>
+
+<!--<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Referencias a los elementos
+    const radioInput = document.getElementById("id_radio_km");
+    const tipoSelect = document.getElementById("id_delito_dnpj");
+    const exportarBtn = document.getElementById("btnExportarPDF");
+    const graficarBtn = document.querySelector('button[name="accion"][value="graficar"]');
+    const cargarBtn = document.querySelector('button[name="accion"][value="cargar"]');
+
+    // Desactivar al inicio
+    radioInput.disabled = true;
+    tipoSelect.disabled = true;
+    exportarBtn.disabled = true;
+    graficarBtn.disabled = true;
+
+    // Estilo visual para botones deshabilitados
+    [exportarBtn, graficarBtn].forEach(btn => {
+        btn.style.opacity = "0.6";
+        btn.style.cursor = "not-allowed";
+    });
+
+    cargarBtn.addEventListener("click", function() {
+        setTimeout(() => {
+            radioInput.disabled = false;
+            tipoSelect.disabled = false;
+            exportarBtn.disabled = false;
+            graficarBtn.disabled = false;
+
+            [exportarBtn, graficarBtn].forEach(btn => {
+                btn.style.opacity = "1";
+                btn.style.cursor = "pointer";
+            });
+        }); // pequeño retraso opcional
+    });
+});
+</script>-->
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const radioInput = document.getElementById("id_radio_km");
+    const tipoSelect = document.getElementById("id_delito_dnpj");
+    const exportarBtn = document.getElementById("btnExportarPDF");
+    const graficarBtn = document.querySelector('button[name="accion"][value="graficar"]');
+    const cargarBtn = document.querySelector('button[name="accion"][value="cargar"]');
+    const mesBtn = document.getElementById("id_mes");
+
+    // --- Saber si ya se cargó el mapa (según el backend Django) ---
+
+    const mapaCargado = "{{ coordenadas|yesno:'true,false' }}" === "true";
+
+    // --- Función para activar/desactivar los controles ---
+    function setEstadoControles(activo) {
+        [radioInput, tipoSelect, exportarBtn, graficarBtn].forEach(el => el.disabled = !activo);
+        [exportarBtn, graficarBtn].forEach(btn => {
+            btn.style.opacity = activo ? "1" : "0.6";
+            btn.style.cursor = activo ? "pointer" : "not-allowed";
+        });
+    }
+
+    // --- Estado inicial ---
+    if (mapaCargado) {
+        setEstadoControles(true);
+        mesBtn.disabled = true;
+         cargarBtn.disabled = true;     // desactiva el botón de cargar
+        cargarBtn.style.opacity = "0.6";
+        cargarBtn.style.cursor = "not-allowed";
+        
+    } else {
+        setEstadoControles(false);
+        
+    }
+
+    // --- Al hacer clic en “Cargar Mapa” se activan temporalmente (efecto visual inmediato) ---
+    cargarBtn.addEventListener("click", function() {
+        setEstadoControles(true);
+    });
+});
+</script>
+
+
+
+
+
+
+
 </body>
+
 </html>
