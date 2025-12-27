@@ -111,6 +111,9 @@ def mapa_canton(request):
         'valores_circuito': valores_circuito,
         'delitos_subcircuito': delitos_subcircuito,
         'valores_subcircuito': valores_subcircuito,
+        'lat_centro': lat_centro,
+        'lon_centro': lon_centro,
+        'radio_usado': radio_metros,
     }
 
     return render(request, 'mapas/subir_excel.html', context)

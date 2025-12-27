@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <style>
+        /* Reset básico */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f4f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h2 {
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 250px;
+        }
+
+        li a {
+            display: block;
+            text-decoration: none;
+            background-color: #4a90e2;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        li a:hover {
+            background-color: #357ab8;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.2);
+        }
+
+        /* Estilo para superusuarios */
+        .admin-link {
+            background-color: #e94e77;
+        }
+
+        .admin-link:hover {
+            background-color: #c23a60;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Bienvenido {{ request.user.username }}</h2>
+
+<ul>
+    <li>
+        <a href="{% url 'mapa:mapa_canton' %}">
+            Usar aplicación
+        </a>
+    </li>
+
+    {% if request.user.is_superuser %}
+    <li>
+        <a href="/admin/" class="admin-link">
+            Administrar usuarios
+        </a>
+    </li>
+    {% endif %}
+
+    <li>
+        <a href="{% url 'logout' %}">
+            Cerrar sesión
+        </a>
+    </li>
+</ul>
+
+</body>
+</html>

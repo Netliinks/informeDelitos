@@ -17,6 +17,8 @@
 from django.urls import path
 from .views import mapa_canton
 
+app_name = "mapa"
+
 urlpatterns = [
     # otras urls
     path('mapa/', mapa_canton, name='mapa_canton'),
